@@ -1,19 +1,17 @@
-# custom_components/nintendo_switch_status/sensor.py
-from typing import Any
+from typing import Any, Optional
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.device_registry import DeviceInfo
 from .const import DOMAIN
 
+
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
         [
-            NintendoSwitchOnlineSensor(coordinator),
+            NintendoSwitchStatusSensor(coordinator),
             NintendoSwitchGameSensor(coordinator),
-            NintendoSwitchGameImageSensor(coordinator),
-            NintendoSwitchProfileNameSensor(coordinator),
-            NintendoSwitchProfileImageSensor(coordinator),
+            NintendoSwitchProfileSensor(coordinator),
             NintendoSwitchAccountIdSensor(coordinator),
             NintendoSwitchTotalPlaytimeSensor(coordinator),
             NintendoSwitchPlatformSensor(coordinator),
@@ -21,7 +19,10 @@ async def async_setup_entry(hass, entry, async_add_entities):
         True,
     )
 
+
 class BaseNintendoSwitchSensor(CoordinatorEntity, SensorEntity):
+    """Base sensor with shared device info."""
+
     has_entity_name = True
 
     def __init__(self, coordinator):
@@ -37,66 +38,84 @@ class BaseNintendoSwitchSensor(CoordinatorEntity, SensorEntity):
             model="Switch",
         )
 
-def _friend() -> dict:
-    """Helper placeholder when used in instance methods (kept for readability)."""
-    return {}
 
-class NintendoSwitchOnlineSensor(BaseNintendoSwitchSensor):
-    _attr_unique_id = "nintendo_switch_status_online"
-    _attr_name = "Online Status"
+class NintendoSwitchStatusSensor(BaseNintendoSwitchSensor):
+    """Online status sensor renamed to 'Status'."""
+
+    _attr_unique_id = "nintendo_switch_status_status"
+    _attr_name = "Status"
     _attr_icon = "mdi:account-badge-outline"
 
     @property
-    def native_value(self) -> Any:
-        return (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("state")
+    def native_value(self) -> Optional[str]:
+        return (self.coordinator.data or {}).get("friend", {}).get(
+            "presence", {}
+        ).get("state")
+
 
 class NintendoSwitchGameSensor(BaseNintendoSwitchSensor):
+    """
+    Current Game sensor.
+    - State: game name or None
+    - If game image exists -> expose as entity_picture and hide icon (return None in icon property)
+    - If no game image -> show fallback mdi:nintendo-switch icon
+    """
+
     _attr_unique_id = "nintendo_switch_status_game"
     _attr_name = "Current Game"
     _attr_icon = "mdi:nintendo-switch"
 
     @property
-    def native_value(self) -> Any:
+    def native_value(self) -> Optional[str]:
         game = (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("game")
         return game.get("name") if game else None
 
-class NintendoSwitchGameImageSensor(BaseNintendoSwitchSensor):
-    _attr_unique_id = "nintendo_switch_status_game_image"
-    _attr_name = "Game Image URL"
-    _attr_icon = "mdi:image"
-
-    @property
-    def native_value(self) -> Any:
-        game = (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("game")
-        return game.get("imageUri") if game else None
-
     @property
     def extra_state_attributes(self) -> dict:
-        url = self.native_value
+        """Provide entity_picture when game image is available."""
+        game = (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("game")
+        url = game.get("imageUri") if game else None
         return {"entity_picture": url} if url else {}
 
-class NintendoSwitchProfileNameSensor(BaseNintendoSwitchSensor):
-    _attr_unique_id = "nintendo_switch_status_profile_name"
-    _attr_name = "Profile Name"
+    @property
+    def icon(self) -> Optional[str]:
+        """Return None when an entity_picture is available so UI shows the picture; otherwise fallback icon."""
+        attrs = self.extra_state_attributes
+        if attrs and attrs.get("entity_picture"):
+            return None
+        return self._attr_icon
+
+
+class NintendoSwitchProfileSensor(BaseNintendoSwitchSensor):
+    """
+    Profile sensor (single entity):
+    - State: Nintendo account/display name
+    - entity_picture: profile image URL (if available)
+    - icon fallback: mdi:account-circle
+    """
+
+    _attr_unique_id = "nintendo_switch_status_profile"
+    _attr_name = "Profile"
     _attr_icon = "mdi:account-circle"
 
     @property
-    def native_value(self) -> Any:
+    def native_value(self) -> Optional[str]:
         return (self.coordinator.data or {}).get("friend", {}).get("name")
-
-class NintendoSwitchProfileImageSensor(BaseNintendoSwitchSensor):
-    _attr_unique_id = "nintendo_switch_status_profile_image"
-    _attr_name = "Profile Image URL"
-    _attr_icon = "mdi:image"
-
-    @property
-    def native_value(self) -> Any:
-        return (self.coordinator.data or {}).get("friend", {}).get("imageUri")
 
     @property
     def extra_state_attributes(self) -> dict:
-        url = self.native_value
+        """Expose profile image as entity_picture when present."""
+        url = (self.coordinator.data or {}).get("friend", {}).get("imageUri")
         return {"entity_picture": url} if url else {}
+
+    @property
+    def icon(self) -> Optional[str]:
+        """Hide icon when profile picture exists (so UI shows the pfp); otherwise show fallback."""
+        attrs = self.extra_state_attributes
+        if attrs and attrs.get("entity_picture"):
+            return None
+        return self._attr_icon
+
 
 class NintendoSwitchAccountIdSensor(BaseNintendoSwitchSensor):
     _attr_unique_id = "nintendo_switch_status_account_id"
@@ -104,8 +123,9 @@ class NintendoSwitchAccountIdSensor(BaseNintendoSwitchSensor):
     _attr_icon = "mdi:identifier"
 
     @property
-    def native_value(self) -> Any:
+    def native_value(self) -> Optional[Any]:
         return (self.coordinator.data or {}).get("friend", {}).get("id")
+
 
 class NintendoSwitchTotalPlaytimeSensor(BaseNintendoSwitchSensor):
     _attr_unique_id = "nintendo_switch_status_total_playtime"
@@ -113,7 +133,7 @@ class NintendoSwitchTotalPlaytimeSensor(BaseNintendoSwitchSensor):
     _attr_icon = "mdi:calendar-clock"
 
     @property
-    def native_value(self) -> Any:
+    def native_value(self) -> Optional[int]:
         game = (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("game")
         if not game:
             return None
@@ -134,15 +154,15 @@ class NintendoSwitchTotalPlaytimeSensor(BaseNintendoSwitchSensor):
         except Exception:
             return {}
 
+
 class NintendoSwitchPlatformSensor(BaseNintendoSwitchSensor):
     _attr_unique_id = "nintendo_switch_status_platform"
     _attr_name = "Platform"
     _attr_icon = "mdi:console"
 
     @property
-    def native_value(self) -> Any:
+    def native_value(self) -> Optional[str]:
         platform = (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("platform")
-        # Map numeric platform codes to friendly names
         if platform == 1:
             return "Nintendo Switch 1"
         if platform == 2:
