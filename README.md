@@ -7,7 +7,7 @@
 
 ## Installation via HACS
 1. In HACS → Integrations → ⋮ → Custom repositories, add:
-   `https://github.com/YOUR_GH_USERNAME/nintendo-switch-status` (type: integration)
+   `https://github.com/itsfatlum/nintendo-switch-status` (type: integration)
 2. Install the integration.
 3. Restart Home Assistant.
 4. Settings → Devices & Services → Add Integration → **Nintendo Switch Status**
