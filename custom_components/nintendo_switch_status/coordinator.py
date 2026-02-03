@@ -13,7 +13,7 @@ class NintendoSwitchCoordinator(DataUpdateCoordinator):
         super().__init__(
             hass,
             _LOGGER,
-            name="nintendo_switch_status",
+            name="nintendo_switch_presence",
             update_interval=timedelta(seconds=SCAN_INTERVAL),
         )
 
