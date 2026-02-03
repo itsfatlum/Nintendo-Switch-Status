@@ -1,9 +1,9 @@
 {
-  "domain": "nintendo_switch_status",
-  "name": "Nintendo Switch Status",
+  "domain": "nintendo_switch_presence",
+  "name": "Nintendo Switch Presence",
   "version": "1.0.0",
-  "documentation": "https://github.com/itsfatlum/nintendo-switch-status",
-  "issue_tracker": "https://github.com/itsfatlum/nintendo-switch-status/issues",
+  "documentation": "https://github.com/itsfatlum/nintendo-switch-presence",
+  "issue_tracker": "https://github.com/itsfatlum/nintendo-switch-presence/issues",
   "requirements": ["aiohttp"],
   "codeowners": ["@itsfatlum"],
   "iot_class": "cloud_polling",
