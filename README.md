@@ -1,6 +1,5 @@
 # Nintendo Switch Presence
 
-![HACS Default](https://img.shields.io/badge/HACS-Default-brightgreen) ![Release Version](https://img.shields.io/github/v/release/itsfatlum/Nintendo-Switch-Presence) ![GitHub stars](https://img.shields.io/github/stars/itsfatlum/Nintendo-Switch-Presence?style=flat) ![Downloads](https://img.shields.io/github/downloads/itsfatlum/Nintendo-Switch-Presence/latest?style=flat)
 
 **Brief description**  
 Nintendo Switch Presence is a small Home Assistant custom integration that uses an NXAPI presence URL to show your Switch presence and activity (online status, current game, playtime, profile, images, platform, etc.).
