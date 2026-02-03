@@ -7,7 +7,7 @@ Nintendo Switch Presence is a small Home Assistant custom integration that uses 
 
 ---
 
-## Quick Start (beginner friendly) ⚡
+## Quick Start (required)
 1. Join the support [Discord](https://discord.com/invite/4D82rFkXRv) and register at https://nxapi-auth.fancy.org.uk.
 2. Add your Switch account on the nxapi site and copy your presence URL.
 3. In Home Assistant go to **Settings → Devices & Services → Add Integration → Nintendo Switch Status**, paste the presence URL and finish setup.
