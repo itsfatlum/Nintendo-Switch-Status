@@ -1,5 +1,5 @@
 {
-  "name": "Nintendo Switch Status",
+  "name": "Nintendo Switch Presence",
   "content_in_root": false,
   "domains": ["nintendo_switch_presence"],
   "country": "DE"

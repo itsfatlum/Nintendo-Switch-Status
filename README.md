@@ -10,7 +10,7 @@ Nintendo Switch Presence is a small Home Assistant custom integration that uses 
 ## Quick Start (required)
 1. Join the support [Discord](https://discord.com/invite/4D82rFkXRv) and register at https://nxapi-auth.fancy.org.uk.
 2. Add your Switch account on the nxapi site and copy your presence URL.
-3. In Home Assistant go to **Settings → Devices & Services → Add Integration → Nintendo Switch Status**, paste the presence URL and finish setup.
+3. In Home Assistant go to **Settings → Devices & Services → Add Integration → Nintendo Switch Presence**, paste the presence URL and finish setup.
 
 > Tip: Keep your presence URL private — treat it like a password.
 
@@ -37,16 +37,16 @@ Nintendo Switch Presence is a small Home Assistant custom integration that uses 
 
 
 ## Installation (HACS)
-[![HACS Repository](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=itsfatlum&repository=Nintendo-Switch-Status)
+[![HACS Repository](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=itsfatlum&repository=Nintendo-Switch-Presence)
 
 Click the badge above to open the HACS repository page for this integration.
 
 
 ## Manual installation (without HACS)
-1. Copy the folder `custom_components/nintendo_switch_status/` into your Home Assistant `config/custom_components/` folder.  
+1. Copy the folder `custom_components/nintendo_switch_presence/` into your Home Assistant `config/custom_components/` folder.  
 2. Ensure `manifest.json` and `hacs.json` are present.  
 3. Restart Home Assistant.  
-4. Add integration via **Settings → Devices & Services → Add Integration → Nintendo Switch Status**, then paste your presence URL.
+4. Add integration via **Settings → Devices & Services → Add Integration → Nintendo Switch Presence**, then paste your presence URL.
 
 ---
 

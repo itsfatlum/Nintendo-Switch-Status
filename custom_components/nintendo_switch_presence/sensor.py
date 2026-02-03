@@ -1,11 +1,34 @@
 from typing import Any, Optional
+import logging
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers import entity_registry as er
 from .const import DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
+    # Migrate entity registry unique_ids from "nintendo_switch_status_*" to
+    # "nintendo_switch_presence_*" so existing entities keep their settings.
+    ent_reg = er.async_get(hass)
+    migration_map = {
+        "nintendo_switch_status_status": "nintendo_switch_presence_status",
+        "nintendo_switch_status_game": "nintendo_switch_presence_game",
+        "nintendo_switch_status_profile": "nintendo_switch_presence_profile",
+        "nintendo_switch_status_account_id": "nintendo_switch_presence_account_id",
+        "nintendo_switch_status_total_playtime": "nintendo_switch_presence_total_playtime",
+        "nintendo_switch_status_platform": "nintendo_switch_presence_platform",
+    }
+    for old_unique, new_unique in migration_map.items():
+        entity_id = ent_reg.async_get_entity_id("sensor", DOMAIN, old_unique)
+        if entity_id:
+            ent_reg.async_update_entity(entity_id, new_unique_id=new_unique)
+            _LOGGER.debug(
+                "Migrated entity %s unique_id %s -> %s", entity_id, old_unique, new_unique
+            )
+
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
         [
@@ -42,7 +65,7 @@ class BaseNintendoSwitchSensor(CoordinatorEntity, SensorEntity):
 class NintendoSwitchStatusSensor(BaseNintendoSwitchSensor):
     """Online status sensor renamed to 'Status'."""
 
-    _attr_unique_id = "nintendo_switch_status_status"
+    _attr_unique_id = "nintendo_switch_presence_status"
     _attr_name = "Status"
     _attr_icon = "mdi:account-badge-outline"
 
@@ -61,7 +84,7 @@ class NintendoSwitchGameSensor(BaseNintendoSwitchSensor):
     - If no game image -> show fallback mdi:nintendo-switch icon
     """
 
-    _attr_unique_id = "nintendo_switch_status_game"
+    _attr_unique_id = "nintendo_switch_presence_game"
     _attr_name = "Current Game"
     _attr_icon = "mdi:nintendo-switch"
 
@@ -94,7 +117,7 @@ class NintendoSwitchProfileSensor(BaseNintendoSwitchSensor):
     - icon fallback: mdi:account-circle
     """
 
-    _attr_unique_id = "nintendo_switch_status_profile"
+    _attr_unique_id = "nintendo_switch_presence_profile"
     _attr_name = "Profile"
     _attr_icon = "mdi:account-circle"
 
@@ -118,7 +141,7 @@ class NintendoSwitchProfileSensor(BaseNintendoSwitchSensor):
 
 
 class NintendoSwitchAccountIdSensor(BaseNintendoSwitchSensor):
-    _attr_unique_id = "nintendo_switch_status_account_id"
+    _attr_unique_id = "nintendo_switch_presence_account_id"
     _attr_name = "Nintendo Switch Account ID"
     _attr_icon = "mdi:identifier"
 
@@ -128,7 +151,7 @@ class NintendoSwitchAccountIdSensor(BaseNintendoSwitchSensor):
 
 
 class NintendoSwitchTotalPlaytimeSensor(BaseNintendoSwitchSensor):
-    _attr_unique_id = "nintendo_switch_status_total_playtime"
+    _attr_unique_id = "nintendo_switch_presence_total_playtime"
     _attr_name = "Total Playtime"
     _attr_icon = "mdi:calendar-clock"
 
@@ -156,7 +179,7 @@ class NintendoSwitchTotalPlaytimeSensor(BaseNintendoSwitchSensor):
 
 
 class NintendoSwitchPlatformSensor(BaseNintendoSwitchSensor):
-    _attr_unique_id = "nintendo_switch_status_platform"
+    _attr_unique_id = "nintendo_switch_presence_platform"
     _attr_name = "Platform"
     _attr_icon = "mdi:console"
 
