@@ -148,7 +148,11 @@ class GameSensor(BaseNintendoSwitchSensor):
     def extra_state_attributes(self) -> dict:
         """Return additional attributes."""
         game = (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("game")
+        friend = (self.coordinator.data or {}).get("friend", {})
         attrs = {}
+        
+        # Add switch name as the first attribute
+        attrs["Name"] = friend.get("name")
         
         if not game:
             return attrs
@@ -217,20 +221,28 @@ class Splatoon3Sensor(BaseNintendoSwitchSensor):
     @property
     def native_value(self) -> Optional[str]:
         """Return the game mode name."""
-        splatoon3 = (self.coordinator.data or {}).get("splatoon3", {})
-        vs_mode = splatoon3.get("vsMode", {})
-        return vs_mode.get("name")
+        splatoon3 = (self.coordinator.data or {}).get("splatoon3")
+        if not splatoon3:
+            return None
+        vs_mode = splatoon3.get("vsMode")
+        if not vs_mode:
+            return "Splatoon 3"
+        mode_name = vs_mode.get("name")
+        return mode_name if mode_name else "Splatoon 3"
 
     @property
     def extra_state_attributes(self) -> dict:
         """Return additional attributes."""
-        splatoon3 = (self.coordinator.data or {}).get("splatoon3", {})
-        attrs = {}
+        splatoon3 = (self.coordinator.data or {}).get("splatoon3")
+        if not splatoon3:
+            return {}
         
+        attrs = {}
         attrs["Nickname"] = splatoon3.get("nickname")
         attrs["Player Name"] = splatoon3.get("playerName")
         
-        vs_mode = splatoon3.get("vsMode", {})
-        attrs["Game Mode"] = vs_mode.get("name")
+        vs_mode = splatoon3.get("vsMode")
+        if vs_mode:
+            attrs["Game Mode"] = vs_mode.get("name")
         
         return attrs
