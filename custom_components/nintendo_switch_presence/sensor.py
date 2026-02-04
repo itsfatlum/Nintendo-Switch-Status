@@ -47,11 +47,11 @@ class NintendoSwitchSensor(BaseNintendoSwitchSensor):
 
     @property
     def unique_id(self) -> str:
-        return f"switch_{self.user_id}"
+        return f"switch_profile_{self.user_id}"
 
     @property
     def name(self) -> str:
-        return f"Switch {self.user_id}"
+        return f"switch_profile_{self.user_id}"
 
     @property
     def icon(self) -> Optional[str]:
@@ -114,11 +114,11 @@ class GameSensor(BaseNintendoSwitchSensor):
 
     @property
     def unique_id(self) -> str:
-        return f"game_{self.user_id}"
+        return f"switch_game_{self.user_id}"
 
     @property
     def name(self) -> str:
-        return f"Game {self.user_id}"
+        return f"switch_game_{self.user_id}"
 
     @property
     def icon(self) -> Optional[str]:
@@ -184,27 +184,33 @@ class Splatoon3Sensor(BaseNintendoSwitchSensor):
 
     @property
     def unique_id(self) -> str:
-        return f"splatoon3_{self.user_id}"
+        return f"switch_splatoon3_{self.user_id}"
 
     @property
     def name(self) -> str:
-        return f"Splatoon 3 {self.user_id}"
+        return f"switch_splatoon3_{self.user_id}"
 
     @property
     def icon(self) -> Optional[str]:
-        """Use game icon URL."""
-        splatoon3 = (self.coordinator.data or {}).get("splatoon3", {})
-        vs_mode = splatoon3.get("vsMode", {})
-        if vs_mode:
+        """Use game icon URL only if currently playing Splatoon 3."""
+        friend = (self.coordinator.data or {}).get("friend", {})
+        game = friend.get("presence", {}).get("game", {})
+        game_name = game.get("name", "")
+        
+        # Only show icon if currently playing Splatoon 3
+        if "Splatoon 3" in game_name and game.get("imageUri"):
             return None
         return "mdi:squid"
 
     @property
     def entity_picture(self) -> Optional[str]:
-        """Return Splatoon 3 game icon from the API game image."""
+        """Return Splatoon 3 game icon from the API game image only if playing Splatoon 3."""
         friend = (self.coordinator.data or {}).get("friend", {})
-        game = friend.get("presence", {}).get("game")
-        if game:
+        game = friend.get("presence", {}).get("game", {})
+        game_name = game.get("name", "")
+        
+        # Only show picture if currently playing Splatoon 3
+        if "Splatoon 3" in game_name:
             return game.get("imageUri")
         return None
 
