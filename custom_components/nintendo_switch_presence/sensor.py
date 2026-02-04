@@ -180,6 +180,21 @@ class GameSensor(BaseNintendoSwitchSensor):
         elif platform_num is not None:
             attrs["Platform"] = f"Platform {platform_num}"
         
+        # Add Splatoon 3 specific attributes if available
+        splatoon3 = (self.coordinator.data or {}).get("splatoon3")
+        if splatoon3:
+            attrs["Nickname"] = splatoon3.get("nickname")
+            
+            vs_mode = splatoon3.get("vsMode")
+            if vs_mode:
+                attrs["Battle Mode"] = vs_mode.get("name")
+            
+            splatoon3_vs_setting = (self.coordinator.data or {}).get("splatoon3_vs_setting")
+            if splatoon3_vs_setting:
+                vs_rule = splatoon3_vs_setting.get("vsRule")
+                if vs_rule:
+                    attrs["Game Mode"] = vs_rule.get("name")
+        
         return attrs
 
 
