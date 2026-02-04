@@ -1,4 +1,5 @@
 from typing import Any, Optional
+from datetime import datetime
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -7,26 +8,28 @@ from .const import DOMAIN
 
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(
-        [
-            NintendoSwitchStatusSensor(coordinator),
-            NintendoSwitchGameSensor(coordinator),
-            NintendoSwitchProfileSensor(coordinator),
-            NintendoSwitchAccountIdSensor(coordinator),
-            NintendoSwitchTotalPlaytimeSensor(coordinator),
-            NintendoSwitchPlatformSensor(coordinator),
-        ],
-        True,
-    )
+    user_id = coordinator.user_id
+    include_splatoon3 = coordinator.include_splatoon3
+
+    sensors = [
+        NintendoSwitchSensor(coordinator, user_id),
+        GameSensor(coordinator, user_id),
+    ]
+    
+    if include_splatoon3:
+        sensors.append(Splatoon3Sensor(coordinator, user_id))
+
+    async_add_entities(sensors, True)
 
 
 class BaseNintendoSwitchSensor(CoordinatorEntity, SensorEntity):
     """Base sensor with shared device info."""
 
-    has_entity_name = True
+    has_entity_name = False
 
-    def __init__(self, coordinator):
+    def __init__(self, coordinator, user_id: str):
         super().__init__(coordinator)
+        self.user_id = user_id
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -39,166 +42,189 @@ class BaseNintendoSwitchSensor(CoordinatorEntity, SensorEntity):
         )
 
 
-class NintendoSwitchStatusSensor(BaseNintendoSwitchSensor):
-    """Online status sensor renamed to 'Status'."""
+class NintendoSwitchSensor(BaseNintendoSwitchSensor):
+    """Main Nintendo Switch sensor with user status and game info."""
 
-    _attr_unique_id = "nintendo_switch_presence_status"
-    _attr_name = "Status"
-    _attr_icon = "mdi:account-badge-outline"
+    @property
+    def unique_id(self) -> str:
+        return f"switch_{self.user_id}"
+
+    @property
+    def name(self) -> str:
+        return f"Switch {self.user_id}"
+
+    @property
+    def icon(self) -> Optional[str]:
+        """Use user profile image as icon."""
+        url = (self.coordinator.data or {}).get("friend", {}).get("imageUri")
+        if url:
+            return None
+        return "mdi:nintendo-switch"
+
+    @property
+    def entity_picture(self) -> Optional[str]:
+        """Return user profile image."""
+        return (self.coordinator.data or {}).get("friend", {}).get("imageUri")
 
     @property
     def native_value(self) -> Optional[str]:
-        return (self.coordinator.data or {}).get("friend", {}).get(
-            "presence", {}
-        ).get("state")
-
-
-class NintendoSwitchGameSensor(BaseNintendoSwitchSensor):
-    """
-    Current Game sensor.
-    - State: game name or None
-    - If game image exists -> expose as entity_picture and hide icon (return None in icon property)
-    - If no game image -> show fallback mdi:nintendo-switch icon
-    """
-
-    _attr_unique_id = "nintendo_switch_presence_game"
-    _attr_name = "Current Game"
-    _attr_icon = "mdi:nintendo-switch"
-
-    @property
-    def native_value(self) -> Optional[str]:
-        game = (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("game")
-        return game.get("name") if game else None
+        """Return the online status/state."""
+        return (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("state")
 
     @property
     def extra_state_attributes(self) -> dict:
-        """Provide entity_picture when game image is available and include playtime/platform info."""
-        game = (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("game")
-        attrs = {}
-        if not game:
-            return {}
-
-        # entity picture
-        url = game.get("imageUri")
-        if url:
-            attrs["entity_picture"] = url
-
-        # total playtime in minutes and hours (if available)
-        minutes = game.get("totalPlayTime")
-        if minutes is not None:
-            attrs["total_playtime_minutes"] = minutes
-            try:
-                attrs["total_playtime_hours"] = round(minutes / 60, 2)
-            except Exception:
-                pass
-
-        # platform number and friendly display (presence-level field)
-        platform_num = (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("platform")
-        if platform_num is not None:
-            attrs["platform_number"] = platform_num
-            if platform_num == 1:
-                attrs["platform"] = "Nintendo Switch 1"
-            elif platform_num == 2:
-                attrs["platform"] = "Nintendo Switch 2"
-            else:
-                attrs["platform"] = f"Platform {platform_num}"
-
+        """Return additional attributes."""
+        friend = (self.coordinator.data or {}).get("friend", {})
+        presence = friend.get("presence", {})
+        game = presence.get("game", {})
+        
+        attrs = {
+            "Name": friend.get("name"),
+            "State": presence.get("state"),
+        }
+        
+        if game:
+            attrs["Game Name"] = game.get("name")
+            attrs["Game Image URL"] = game.get("imageUri")
+            
+            # Total play time in hours
+            minutes = game.get("totalPlayTime")
+            if minutes is not None:
+                attrs["Total Play Time"] = round(minutes / 60, 2)
+            
+            # First played at - convert timestamp to ISO format
+            first_played = game.get("firstPlayedAt")
+            if first_played:
+                attrs["First Played At"] = datetime.fromtimestamp(first_played).isoformat()
+        
+        # Platform
+        platform_num = presence.get("platform")
+        if platform_num == 1:
+            attrs["Platform"] = "Nintendo Switch 1"
+        elif platform_num == 2:
+            attrs["Platform"] = "Nintendo Switch 2"
+        elif platform_num is not None:
+            attrs["Platform"] = f"Platform {platform_num}"
+        
         return attrs
 
-    @property
-    def icon(self) -> Optional[str]:
-        """Return None when an entity_picture is available so UI shows the picture; otherwise fallback icon."""
-        attrs = self.extra_state_attributes
-        if attrs and attrs.get("entity_picture"):
-            return None
-        return self._attr_icon
 
-
-class NintendoSwitchProfileSensor(BaseNintendoSwitchSensor):
-    """
-    Profile sensor (single entity):
-    - State: Nintendo account/display name
-    - entity_picture: profile image URL (if available)
-    - icon fallback: mdi:account-circle
-    """
-
-    _attr_unique_id = "nintendo_switch_presence_profile"
-    _attr_name = "Profile"
-    _attr_icon = "mdi:account-circle"
+class GameSensor(BaseNintendoSwitchSensor):
+    """Game/Title sensor with game details."""
 
     @property
-    def native_value(self) -> Optional[str]:
-        return (self.coordinator.data or {}).get("friend", {}).get("name")
+    def unique_id(self) -> str:
+        return f"game_{self.user_id}"
 
     @property
-    def extra_state_attributes(self) -> dict:
-        """Expose profile image as entity_picture when present."""
-        url = (self.coordinator.data or {}).get("friend", {}).get("imageUri")
-        return {"entity_picture": url} if url else {}
+    def name(self) -> str:
+        return f"Game {self.user_id}"
 
     @property
     def icon(self) -> Optional[str]:
-        """Hide icon when profile picture exists (so UI shows the pfp); otherwise show fallback."""
-        attrs = self.extra_state_attributes
-        if attrs and attrs.get("entity_picture"):
-            return None
-        return self._attr_icon
-
-
-class NintendoSwitchAccountIdSensor(BaseNintendoSwitchSensor):
-    has_entity_name = False
-    _attr_unique_id = "nintendo_switch_presence_account_id"
-    _attr_name = "Nintendo Switch Account ID"
-    _attr_icon = "mdi:identifier"
-
-    @property
-    def native_value(self) -> Optional[Any]:
-        return (self.coordinator.data or {}).get("friend", {}).get("id")
-
-
-class NintendoSwitchTotalPlaytimeSensor(BaseNintendoSwitchSensor):
-    _attr_unique_id = "nintendo_switch_presence_total_playtime"
-    _attr_name = "Total Playtime"
-    _attr_icon = "mdi:calendar-clock"
-
-    @property
-    def native_value(self) -> Optional[int]:
+        """Use game image as icon."""
         game = (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("game")
-        if not game:
+        if game and game.get("imageUri"):
             return None
-        return game.get("totalPlayTime")
+        return "mdi:gamepad-variant"
 
     @property
-    def native_unit_of_measurement(self) -> str:
-        return "min"
-
-    @property
-    def extra_state_attributes(self) -> dict:
-        minutes = self.native_value
-        try:
-            if minutes is None:
-                return {}
-            hours = round(minutes / 60, 2)
-            return {"hours": hours}
-        except Exception:
-            return {}
-
-
-class NintendoSwitchPlatformSensor(BaseNintendoSwitchSensor):
-    _attr_unique_id = "nintendo_switch_presence_platform"
-    _attr_name = "Platform"
-    _attr_icon = "mdi:console"
+    def entity_picture(self) -> Optional[str]:
+        """Return game image."""
+        game = (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("game")
+        if game:
+            return game.get("imageUri")
+        return None
 
     @property
     def native_value(self) -> Optional[str]:
-        platform = (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("platform")
-        if platform == 1:
-            return "Nintendo Switch 1"
-        if platform == 2:
-            return "Nintendo Switch 2"
-        return f"Platform {platform}" if platform is not None else None
+        """Return the current game name."""
+        game = (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("game")
+        if game:
+            return game.get("name")
+        return None
 
     @property
     def extra_state_attributes(self) -> dict:
-        platform_num = (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("platform")
-        return {"platform_number": platform_num} if platform_num is not None else {}
+        """Return additional attributes."""
+        game = (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("game")
+        attrs = {}
+        
+        if not game:
+            return attrs
+        
+        attrs["Game Name"] = game.get("name")
+        attrs["Game Image URL"] = game.get("imageUri")
+        
+        # Total play time in hours
+        minutes = game.get("totalPlayTime")
+        if minutes is not None:
+            attrs["Total Play Time"] = round(minutes / 60, 2)
+        
+        # First played at - convert timestamp to ISO format
+        first_played = game.get("firstPlayedAt")
+        if first_played:
+            attrs["First Played At"] = datetime.fromtimestamp(first_played).isoformat()
+        
+        # Platform
+        presence = (self.coordinator.data or {}).get("friend", {}).get("presence", {})
+        platform_num = presence.get("platform")
+        if platform_num == 1:
+            attrs["Platform"] = "Nintendo Switch 1"
+        elif platform_num == 2:
+            attrs["Platform"] = "Nintendo Switch 2"
+        elif platform_num is not None:
+            attrs["Platform"] = f"Platform {platform_num}"
+        
+        return attrs
+
+
+class Splatoon3Sensor(BaseNintendoSwitchSensor):
+    """Splatoon 3 specific sensor with game mode info."""
+
+    @property
+    def unique_id(self) -> str:
+        return f"splatoon3_{self.user_id}"
+
+    @property
+    def name(self) -> str:
+        return f"Splatoon 3 {self.user_id}"
+
+    @property
+    def icon(self) -> Optional[str]:
+        """Use game icon URL."""
+        splatoon3 = (self.coordinator.data or {}).get("splatoon3", {})
+        vs_mode = splatoon3.get("vsMode", {})
+        if vs_mode:
+            return None
+        return "mdi:squid"
+
+    @property
+    def entity_picture(self) -> Optional[str]:
+        """Return Splatoon 3 game icon from the API game image."""
+        friend = (self.coordinator.data or {}).get("friend", {})
+        game = friend.get("presence", {}).get("game")
+        if game:
+            return game.get("imageUri")
+        return None
+
+    @property
+    def native_value(self) -> Optional[str]:
+        """Return the game mode name."""
+        splatoon3 = (self.coordinator.data or {}).get("splatoon3", {})
+        vs_mode = splatoon3.get("vsMode", {})
+        return vs_mode.get("name")
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Return additional attributes."""
+        splatoon3 = (self.coordinator.data or {}).get("splatoon3", {})
+        attrs = {}
+        
+        attrs["Nickname"] = splatoon3.get("nickname")
+        attrs["Player Name"] = splatoon3.get("playerName")
+        
+        vs_mode = splatoon3.get("vsMode", {})
+        attrs["Game Mode"] = vs_mode.get("name")
+        
+        return attrs

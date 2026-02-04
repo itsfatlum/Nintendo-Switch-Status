@@ -8,8 +8,10 @@ from .const import SCAN_INTERVAL
 _LOGGER = logging.getLogger(__name__)
 
 class NintendoSwitchCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass: HomeAssistant, api_url: str):
+    def __init__(self, hass: HomeAssistant, api_url: str, user_id: str, include_splatoon3: bool):
         self.api_url = api_url
+        self.user_id = user_id
+        self.include_splatoon3 = include_splatoon3
         super().__init__(
             hass,
             _LOGGER,
