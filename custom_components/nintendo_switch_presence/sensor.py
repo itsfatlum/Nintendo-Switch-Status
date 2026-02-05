@@ -55,11 +55,8 @@ class NintendoSwitchSensor(BaseNintendoSwitchSensor):
 
     @property
     def icon(self) -> Optional[str]:
-        """Use user profile image as icon."""
-        url = (self.coordinator.data or {}).get("friend", {}).get("imageUri")
-        if url:
-            return None
-        return "mdi:account"
+        """Always use Nintendo Switch icon."""
+        return "mdi:nintendo-switch"
 
     @property
     def entity_picture(self) -> Optional[str]:
@@ -78,13 +75,9 @@ class NintendoSwitchSensor(BaseNintendoSwitchSensor):
         presence = friend.get("presence", {})
         game = presence.get("game", {})
         
-        # Normalize state to lowercase
-        state = presence.get("state")
-        normalized_state = state.lower() if state else None
-        
         attrs = {
             "Account Name": friend.get("name"),
-            "Status": normalized_state,
+            "Status": presence.get("state"),
         }
         
         if game:
@@ -126,15 +119,12 @@ class GameSensor(BaseNintendoSwitchSensor):
 
     @property
     def icon(self) -> Optional[str]:
-        """Use game image as icon."""
-        game = (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("game")
-        if game and game.get("imageUri"):
-            return None
+        """Always use Nintendo Switch icon."""
         return "mdi:nintendo-switch"
 
     @property
     def entity_picture(self) -> Optional[str]:
-        """Return game image."""
+        """Return game image if game is being played."""
         game = (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("game")
         if game:
             return game.get("imageUri")
@@ -215,19 +205,19 @@ class Splatoon3Sensor(BaseNintendoSwitchSensor):
 
     @property
     def icon(self) -> Optional[str]:
-        """Use game icon URL only if currently playing Splatoon 3."""
+        """Use water icon unless playing Splatoon 3, then show game icon."""
         friend = (self.coordinator.data or {}).get("friend", {})
         game = friend.get("presence", {}).get("game", {})
         game_name = game.get("name", "")
         
-        # Only show icon if currently playing Splatoon 3
+        # Show game icon when playing Splatoon 3
         if "Splatoon 3" in game_name and game.get("imageUri"):
             return None
         return "mdi:water"
 
     @property
     def entity_picture(self) -> Optional[str]:
-        """Return Splatoon 3 game icon from the API game image only if playing Splatoon 3."""
+        """Return Splatoon 3 game icon only if currently playing Splatoon 3."""
         friend = (self.coordinator.data or {}).get("friend", {})
         game = friend.get("presence", {}).get("game", {})
         game_name = game.get("name", "")
