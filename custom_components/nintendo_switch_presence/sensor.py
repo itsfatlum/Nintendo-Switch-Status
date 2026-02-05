@@ -59,7 +59,7 @@ class NintendoSwitchSensor(BaseNintendoSwitchSensor):
         url = (self.coordinator.data or {}).get("friend", {}).get("imageUri")
         if url:
             return None
-        return "mdi:nintendo-switch"
+        return "mdi:account"
 
     @property
     def entity_picture(self) -> Optional[str]:
@@ -78,9 +78,13 @@ class NintendoSwitchSensor(BaseNintendoSwitchSensor):
         presence = friend.get("presence", {})
         game = presence.get("game", {})
         
+        # Normalize state to lowercase
+        state = presence.get("state")
+        normalized_state = state.lower() if state else None
+        
         attrs = {
-            "Name": friend.get("name"),
-            "State": presence.get("state"),
+            "Account Name": friend.get("name"),
+            "Status": normalized_state,
         }
         
         if game:
@@ -126,7 +130,7 @@ class GameSensor(BaseNintendoSwitchSensor):
         game = (self.coordinator.data or {}).get("friend", {}).get("presence", {}).get("game")
         if game and game.get("imageUri"):
             return None
-        return "mdi:gamepad-variant"
+        return "mdi:nintendo-switch"
 
     @property
     def entity_picture(self) -> Optional[str]:
@@ -219,7 +223,7 @@ class Splatoon3Sensor(BaseNintendoSwitchSensor):
         # Only show icon if currently playing Splatoon 3
         if "Splatoon 3" in game_name and game.get("imageUri"):
             return None
-        return "mdi:squid"
+        return "mdi:water"
 
     @property
     def entity_picture(self) -> Optional[str]:
@@ -235,15 +239,33 @@ class Splatoon3Sensor(BaseNintendoSwitchSensor):
 
     @property
     def native_value(self) -> Optional[str]:
-        """Return the game mode name."""
-        splatoon3 = (self.coordinator.data or {}).get("splatoon3")
-        if not splatoon3:
-            return None
-        vs_mode = splatoon3.get("vsMode")
-        if not vs_mode:
+        """Return the current state based on presence."""
+        friend = (self.coordinator.data or {}).get("friend", {})
+        presence = friend.get("presence", {})
+        game = presence.get("game", {})
+        game_name = game.get("name", "")
+        state = presence.get("state", "")
+        
+        # Determine what to display based on state and game
+        if "Splatoon 3" in game_name:
+            # Check if in battle mode
+            splatoon3 = (self.coordinator.data or {}).get("splatoon3")
+            if splatoon3:
+                vs_mode = splatoon3.get("vsMode")
+                if vs_mode:
+                    mode_name = vs_mode.get("name")
+                    if mode_name:
+                        return mode_name
             return "Splatoon 3"
-        mode_name = vs_mode.get("name")
-        return mode_name if mode_name else "Splatoon 3"
+        elif state and state.lower() == "online" and game_name:
+            # Playing something other than Splatoon 3
+            return "Playing"
+        elif state and state.lower() == "online":
+            # Online but not playing anything
+            return "Online"
+        else:
+            # Offline
+            return "Offline"
 
     @property
     def extra_state_attributes(self) -> dict:
@@ -266,5 +288,16 @@ class Splatoon3Sensor(BaseNintendoSwitchSensor):
             vs_rule = splatoon3_vs_setting.get("vsRule")
             if vs_rule:
                 attrs["Game Mode"] = vs_rule.get("name")
+        
+        # Add Platform
+        friend = (self.coordinator.data or {}).get("friend", {})
+        presence = friend.get("presence", {})
+        platform_num = presence.get("platform")
+        if platform_num == 1:
+            attrs["Platform"] = "Nintendo Switch 1"
+        elif platform_num == 2:
+            attrs["Platform"] = "Nintendo Switch 2"
+        elif platform_num is not None:
+            attrs["Platform"] = f"Platform {platform_num}"
         
         return attrs
